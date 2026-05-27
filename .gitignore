@@ -1,0 +1,27 @@
+# Figuras generadas por el motor (outputs, no código fuente)
+gradient_fig_*.png
+
+# Cache Python
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Auxiliares LaTeX
+proyecto/*.aux
+proyecto/*.log
+proyecto/*.out
+proyecto/*.toc
+proyecto/*.synctex.gz
+
+# PDFs de otras entregas (no son parte de este proyecto)
+proyecto/centroide_termico_informe\ 1.pdf
+proyecto/Proyecto_final_vectorial.pdf
+proyecto/Taller_vectorial_final.pdf
+
+# Script de simulación de ataques
+attack_sim.py
+
+# Directorios de otros talleres
+taller_1/
+taller1_sebastian/
+taller_centroide_v2/
