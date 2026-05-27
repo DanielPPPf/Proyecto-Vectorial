@@ -1,6 +1,10 @@
 # Figuras generadas por el motor (outputs, no código fuente)
 gradient_fig_*.png
 
+# Configuración local con credenciales
+gradient_engine/config.py
+infra/.env
+
 # Cache Python
 **/__pycache__/
 *.pyc
@@ -17,9 +21,6 @@ proyecto/*.synctex.gz
 proyecto/centroide_termico_informe\ 1.pdf
 proyecto/Proyecto_final_vectorial.pdf
 proyecto/Taller_vectorial_final.pdf
-
-# Script de simulación de ataques
-attack_sim.py
 
 # Directorios de otros talleres
 taller_1/

@@ -1,0 +1,129 @@
+services:
+
+  # ── Wazuh Indexer (OpenSearch) ───────────────────────────────────────────
+  wazuh.indexer:
+    image: wazuh/wazuh-indexer:4.7.5
+    container_name: wazuh-indexer
+    hostname: wazuh.indexer
+    restart: always
+    ports:
+      - "9200:9200"
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ./config/wazuh_indexer/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+      - ./config/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
+      - ./certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem
+      - ./certs/wazuh.indexer-key.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer-key.pem
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem
+    networks:
+      - wazuh-net
+
+  # ── Wazuh Manager ────────────────────────────────────────────────────────
+  wazuh.manager:
+    image: wazuh/wazuh-manager:4.7.5
+    container_name: wazuh-manager
+    hostname: wazuh.manager
+    restart: always
+    ports:
+      - "1514:1514/udp"     # agentes (UDP)
+      - "1515:1515"         # registro de agentes
+      - "55000:55000"       # API REST
+      - "2222:22"           # SSH para lectura de alerts.json
+    environment:
+      INDEXER_URL: https://wazuh.indexer:9200
+      INDEXER_USERNAME: admin
+      INDEXER_PASSWORD: ${INDEXER_PASSWORD:-SecretPassword}
+      FILEBEAT_SSL_VERIFICATION_MODE: full
+      SSL_CERTIFICATE_AUTHORITIES: /etc/ssl/root-ca.pem
+      SSL_CERTIFICATE: /etc/ssl/filebeat.pem
+      SSL_KEY: /etc/ssl/filebeat-key.pem
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${API_PASSWORD:-MyS3cr3tP4ssw0rd}
+    volumes:
+      - wazuh-manager-etc:/var/ossec/etc
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-queue:/var/ossec/queue
+      - ./certs/root-ca-manager.pem:/etc/ssl/root-ca.pem
+      - ./certs/wazuh.manager.pem:/etc/ssl/filebeat.pem
+      - ./certs/wazuh.manager-key.pem:/etc/ssl/filebeat-key.pem
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh.indexer
+
+  # ── Wazuh Dashboard ──────────────────────────────────────────────────────
+  wazuh.dashboard:
+    image: wazuh/wazuh-dashboard:4.7.5
+    container_name: wazuh-dashboard
+    hostname: wazuh.dashboard
+    restart: always
+    ports:
+      - "443:5601"
+    environment:
+      INDEXER_USERNAME: admin
+      INDEXER_PASSWORD: ${INDEXER_PASSWORD:-SecretPassword}
+      WAZUH_API_URL: https://wazuh.manager
+      DASHBOARD_USERNAME: kibanaserver
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-kibanaserver}
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${API_PASSWORD:-MyS3cr3tP4ssw0rd}
+    volumes:
+      - ./certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
+      - ./certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh.indexer
+      - wazuh.manager
+
+  # ── Agente victim-c (Nodo B) ─────────────────────────────────────────────
+  victim-c:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    container_name: victim-c
+    hostname: victim-c
+    restart: always
+    environment:
+      WAZUH_MANAGER: wazuh.manager
+      WAZUH_AGENT_NAME: victim-c
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh.manager
+
+  # ── Agente capstone (Nodo C) ─────────────────────────────────────────────
+  capstone:
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    container_name: capstone
+    hostname: capstone
+    restart: always
+    environment:
+      WAZUH_MANAGER: wazuh.manager
+      WAZUH_AGENT_NAME: capstone
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh.manager
+
+volumes:
+  wazuh-indexer-data:
+  wazuh-manager-etc:
+  wazuh-manager-logs:
+  wazuh-manager-queue:
+
+networks:
+  wazuh-net:
+    driver: bridge
